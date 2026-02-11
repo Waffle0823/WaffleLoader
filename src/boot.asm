@@ -4,6 +4,9 @@
 CODE_OFFSET equ 0x8
 DATA_OFFSET equ 0x10
 
+KERNEL_LOAD_SEG equ 0x1000
+KERNEL_START_ADDR equ 0x100000
+
 start:
   cli
   mov ax, 0x00
@@ -14,29 +17,45 @@ start:
   sti
 
 
+mov bx, KERNEL_LOAD_SEG
+mov dh, 0x00
+mov dl, 0x80
+mov cl, 0x02
+mov ch, 0x00
+mov ah, 0x02
+mov al, 8
+int 0x13
+
+jc disk_read_error
+
+
 load_PM:
   cli
   lgdt[gdt_descriptor]
   mov eax, cr0
   or al, 1
   mov cr0, eax
-  jmp CODE_OFFSET:PModeMain 
+  jmp CODE_OFFSET:PModeMain
+
+
+disk_read_error:
+  hlt
 
 
 gdt_start:
   dd 0x0
-  db 0x0
+  dd 0x0
 
   dw 0xFFFF
   dw 0x0000
-  dw 0x00
+  db 0x00
   db 10011010b
   db 11001111b
   db 0x00
 
   dw 0xFFFF
   dw 0x0000
-  dw 0x00
+  db 0x00
   db 10010010b
   db 11001111b
   db 0x00
@@ -47,6 +66,7 @@ gdt_end:
 
 gdt_descriptor:
   dw gdt_end - gdt_start - 1
+  dd gdt_start
 
 
 [BITS 32]
@@ -64,7 +84,7 @@ PModeMain:
   or al, 2
   out 0x92, al
 
-  jmp $
+  jmp CODE_OFFSET:KERNEL_START_ADDR
 
 
 times 510 - ($ - $$) db 0
